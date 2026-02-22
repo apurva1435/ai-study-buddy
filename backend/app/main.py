@@ -10,25 +10,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# ----------------------------
-# Setup Upload Directory
-# ----------------------------
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# ----------------------------
-# Load Embedding Model (loads once)
-# ----------------------------
+# Load embedding model
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
-# In-memory storage (temporary for demo)
+# In-memory storage
 stored_chunks = []
 stored_embeddings = []
 
 
-# ----------------------------
-# Chunking Function
-# ----------------------------
 def chunk_text(text, chunk_size=800, overlap=100):
     chunks = []
     start = 0
@@ -43,20 +35,25 @@ def chunk_text(text, chunk_size=800, overlap=100):
     return chunks
 
 
-# ----------------------------
-# Upload Endpoint
-# ----------------------------
+@app.get("/")
+def read_root():
+    return {"message": "AI Study Buddy Backend Running"}
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
+
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     global stored_chunks, stored_embeddings
 
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
-    # Save uploaded file
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # Read PDF
     reader = PdfReader(file_path)
     text = ""
 
@@ -65,13 +62,10 @@ async def upload_file(file: UploadFile = File(...)):
         if extracted:
             text += extracted
 
-    # Chunk text
     chunks = chunk_text(text)
 
-    # Generate embeddings
     embeddings = model.encode(chunks)
 
-    # Store in memory
     stored_chunks = chunks
     stored_embeddings = embeddings
 
@@ -82,9 +76,6 @@ async def upload_file(file: UploadFile = File(...)):
     }
 
 
-# ----------------------------
-# Ask Endpoint
-# ----------------------------
 @app.post("/ask")
 async def ask_question(question: str):
     global stored_chunks, stored_embeddings
@@ -92,10 +83,8 @@ async def ask_question(question: str):
     if not stored_chunks:
         return {"error": "No document uploaded yet."}
 
-    # Embed question
     question_embedding = model.encode([question])[0]
 
-    # Similarity search (dot product)
     similarities = np.dot(stored_embeddings, question_embedding)
 
     best_match_index = np.argmax(similarities)
