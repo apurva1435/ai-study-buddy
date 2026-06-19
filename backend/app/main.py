@@ -4,6 +4,7 @@ from sentence_transformers import SentenceTransformer
 import shutil
 import os
 import numpy as np
+from app.database import conn, cursor
 
 app = FastAPI(
     title="AI Study Buddy API",
@@ -94,4 +95,44 @@ async def ask_question(question: str):
     return {
         "question": question,
         "best_match_chunk": best_chunk[:1000]
+    }
+@app.post("/session")
+def save_session(
+    subject: str,
+    duration: int,
+    focus_score: float
+):
+    cursor.execute(
+        """
+        INSERT INTO sessions
+        (subject,duration,focus_score)
+        VALUES(?,?,?)
+        """,
+        (subject, duration, focus_score)
+    )
+
+    conn.commit()
+
+    return {
+        "message": "Session saved successfully"
+    }
+
+
+@app.get("/analytics")
+def get_analytics():
+
+    cursor.execute("""
+        SELECT
+        COUNT(*),
+        SUM(duration),
+        AVG(focus_score)
+        FROM sessions
+    """)
+
+    data = cursor.fetchone()
+
+    return {
+        "total_sessions": data[0] if data[0] else 0,
+        "total_duration": data[1] if data[1] else 0,
+        "average_focus_score": round(data[2], 2) if data[2] else 0
     }
