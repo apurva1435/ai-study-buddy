@@ -15,6 +15,8 @@ interface AnalyticsDashboardProps {
 export default function AnalyticsDashboard({
   analyticsData,
 }: AnalyticsDashboardProps) {
+
+  console.log(analyticsData.focusScore);
   const cards = [
     {
       label: "Study Time Today",

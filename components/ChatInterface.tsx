@@ -44,7 +44,7 @@ export default function ChatInterface({
     setIsLoading(true);
 
     try {
-      const res = await fetch("/api/chat", {
+      const res = await fetch("http://127.0.0.1:8000/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -94,29 +94,51 @@ export default function ChatInterface({
         )}
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col">
-        {messages.map((msg, index) => (
-          <div
-            key={index}
-            className={`p-3 rounded-lg text-sm max-w-[80%] ${
-              msg.role === "user"
-                ? "bg-black text-white self-end ml-auto"
-                : "bg-gray-100 text-gray-800"
-            }`}
-          >
-            {msg.content}
-          </div>
-        ))}
+     {/* Messages */}
+<div className="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col">
 
-        {isLoading && (
-          <div className="bg-gray-100 text-gray-500 text-sm p-3 rounded-lg max-w-[80%] animate-pulse">
-            Thinking...
-          </div>
-        )}
+  {messages.map((msg, index) => (
 
-        <div ref={messagesEndRef} />
-      </div>
+    <div
+      key={index}
+      className={`max-w-[88%] rounded-xl p-4 shadow-sm ${
+        msg.role === "user"
+          ? "bg-black text-white self-end ml-auto"
+          : "bg-blue-50 border border-blue-100 text-gray-800"
+      }`}
+    >
+
+      {msg.role === "assistant" ? (
+
+        <div className="whitespace-pre-wrap text-[15px] leading-7">
+
+          {msg.content
+            .replace("Definition:", "📘 Definition\n")
+            .replace("Explanation:", "\n\n💡 Explanation\n")
+            .replace("Key Points:", "\n\n✅ Key Points\n")
+            .replace("📄 Source:", "\n\n──────────────\n📄 Relevant Pages\n")}
+
+        </div>
+
+      ) : (
+
+        msg.content
+
+      )}
+
+    </div>
+
+  ))}
+
+  {isLoading && (
+    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 animate-pulse">
+      🤖 Thinking...
+    </div>
+  )}
+
+  <div ref={messagesEndRef} />
+
+</div>
 
       {/* Input */}
       <div className="p-3 border-t flex gap-2">

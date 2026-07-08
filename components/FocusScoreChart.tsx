@@ -14,7 +14,6 @@ import {
 type StoredDailyStats = {
   focusScores?: unknown;
 };
-
 type FocusScoreDataPoint = {
   date: string;
   score: number;
@@ -86,18 +85,37 @@ function loadFocusScoreHistory() {
   return data.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 }
 
-export default function FocusScoreChart() {
-  const [chartData, setChartData] = useState<FocusScoreDataPoint[]>([]);
+type FocusScoreChartProps = {
+  refreshTrigger: number;
+};
 
-  useEffect(() => {
-    const animationFrame = window.requestAnimationFrame(() => {
-      setChartData(loadFocusScoreHistory());
-    });
 
-    return () => {
-      window.cancelAnimationFrame(animationFrame);
-    };
-  }, []);
+export default function FocusScoreChart({
+  refreshTrigger,
+}: FocusScoreChartProps) {
+
+   const [chartData, setChartData] =
+    useState<FocusScoreDataPoint[]>([]);
+
+
+useEffect(() => {
+
+  console.log("FocusScoreChart Reloaded");
+  console.log("Trigger:", refreshTrigger);
+
+
+  const animationFrame = window.requestAnimationFrame(() => {
+    const data = loadFocusScoreHistory();
+
+    console.log("Chart Data:" ,data);
+
+    setChartData(data);
+  });
+
+  return () => {
+    window.cancelAnimationFrame(animationFrame);
+  };
+}, [refreshTrigger]);
 
   return (
     <section className="mt-6 bg-white rounded-lg shadow p-4">

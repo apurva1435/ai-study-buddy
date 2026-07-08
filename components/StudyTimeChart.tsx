@@ -77,7 +77,13 @@ function loadStudyTimeHistory() {
   return data.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 }
 
-export default function StudyTimeChart() {
+type StudyTimeChartProps = {
+  refreshTrigger: number;
+};
+
+export default function StudyTimeChart({
+  refreshTrigger,
+}: StudyTimeChartProps) {
   const [chartData, setChartData] = useState<StudyTimeDataPoint[]>([]);
 
   useEffect(() => {
@@ -88,7 +94,7 @@ export default function StudyTimeChart() {
     return () => {
       window.cancelAnimationFrame(animationFrame);
     };
-  }, []);
+  }, [refreshTrigger]);
 
   return (
     <section className="mt-6 bg-white rounded-lg shadow-sm p-4">

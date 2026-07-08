@@ -12,6 +12,28 @@ import StudyTimeChart from "@/components/StudyTimeChart";
 import KnowledgeGraphDashboard from "@/components/KnowledgeGraphDashboard";
 import { useCallback, useState, useEffect, useRef } from "react";
 import { useFocusTracker } from "@/hooks/useFocusTracker";
+const API_URL = "http://127.0.0.1:8000";
+
+async function saveSession(
+  duration: number,
+  focusScore: number
+) {
+  try {
+    await fetch(`${API_URL}/session`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        subject: "Pomodoro Session",
+        duration: duration,
+        focus_score: focusScore,
+      }),
+    });
+  } catch (error) {
+    console.error("Failed to save session:", error);
+  }
+}
 
 function getStudyDayKey() {
   const now = new Date();
@@ -28,7 +50,7 @@ function getStudyDayKey() {
 }
 
 const studyMethods = [
-  { name: "Pomodoro (25/5)", studyDuration: 25 * 60, breakDuration: 5 * 60 },
+  { name: "Pomodoro (25/5)", studyDuration: 10, breakDuration: 5},
   { name: "Deep Work (90 min)", studyDuration: 90 * 60, breakDuration: 0 },
 ];
 
@@ -60,6 +82,7 @@ export default function Home() {
 
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [liveFocused, setLiveFocused] = useState(true);
   const [faceAbsencesSession, setFaceAbsencesSession] = useState(0);
   const [contextSwitchesSession, setContextSwitchesSession] = useState(0);
 
@@ -68,6 +91,12 @@ export default function Home() {
     distractionScore: number;
     quality: string;
   } | null>(null);
+
+  const [backendAnalytics, setBackendAnalytics] = useState({
+  total_sessions: 0,
+  total_duration: 0,
+  average_focus_score: 0,
+});
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const endTimeRef = useRef<number | null>(null);
@@ -82,8 +111,10 @@ export default function Home() {
   const { completedSessions, totalStudyTime, focusScores } = dailyStats;
 
   const focusScore = focusSummary
-    ? Math.round(focusSummary.focusRatio * 100)
-    : Math.max(0, 100 - distractionScore * 10);
+  ? Math.round(focusSummary.focusRatio * 100)
+  : liveFocused
+    ? Math.max(0, 100 - distractionScore * 10)
+    : Math.max(0, 95 - distractionScore * 10);
 
   const averageFocusScore =
     focusScores.length > 0
@@ -104,15 +135,34 @@ export default function Home() {
     )
   );
 
-  const analyticsData = {
-    studyTime: Math.floor(totalStudyTime / 60),
-    completedSessions,
-    focusScore,
-    averageFocusScore,
-    effectivenessScore,
-    contextSwitches: contextSwitchesSession,
-    faceAbsences: faceAbsencesSession,
-  };
+
+console.log({
+  liveFocused,
+  focusScore,
+});
+
+
+const analyticsData = {
+  studyTime: Math.floor(
+    backendAnalytics.total_duration / 60
+  ),
+
+  completedSessions:
+    backendAnalytics.total_sessions,
+
+  focusScore,
+
+  averageFocusScore:
+    Math.round(
+      backendAnalytics.average_focus_score
+    ),
+
+  effectivenessScore,
+
+  contextSwitches: contextSwitchesSession,
+
+  faceAbsences: faceAbsencesSession,
+};
 
   useEffect(() => {
     window.requestAnimationFrame(() => {
@@ -146,6 +196,21 @@ export default function Home() {
 
     window.localStorage.setItem(getStudyDayKey(), JSON.stringify(dailyStats));
   }, [dailyStats]);
+
+  useEffect(() => {
+  async function fetchAnalytics() {
+    try {
+      const res = await fetch(`${API_URL}/analytics`);
+      const data = await res.json();
+
+      setBackendAnalytics(data);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  fetchAnalytics();
+}, [dailyStats]);
 
   // Accurate timer engine
   useEffect(() => {
@@ -210,6 +275,11 @@ export default function Home() {
             Math.min(100, Math.round(focusRatio * 100))
           );
 
+          saveSession(
+            selectedMethod.studyDuration,
+            sessionFocusScore
+          );
+
           setFocusSummary({
             focusRatio,
             distractionScore,
@@ -227,7 +297,7 @@ export default function Home() {
               sessionFocusScore,
             ],
           }));
-
+          
           setStatus("decision");
         } else {
           setTimeLeft(selectedMethod.studyDuration);
@@ -300,13 +370,25 @@ export default function Home() {
     setStatus("idle");
   };
 
-  const handleFaceAbsence = useCallback(() => {
-    setFaceAbsencesSession((prev) => prev + 1);
-  }, []);
+const handleFaceAbsence = useCallback(() => {
+  console.log("Face Absence Counted");
+
+  setFaceAbsencesSession((prev) => {
+    console.log("Previous Face Absences:", prev);
+    return prev + 1;
+  });
+}, []);
 
   const handleContextSwitch = useCallback(() => {
     setContextSwitchesSession((prev) => prev + 1);
   }, []);
+
+  console.log({
+  status,
+  liveFocused,
+  focusSummary,
+  focusScore,
+});
 
   return (
     <main className="min-h-screen flex bg-gray-100">
@@ -332,9 +414,9 @@ export default function Home() {
 
           <AnalyticsDashboard analyticsData={analyticsData} />
 
-          <FocusScoreChart />
+          <FocusScoreChart refreshTrigger={dailyStats.completedSessions} />
 
-          <StudyTimeChart />
+          <StudyTimeChart refreshTrigger ={dailyStats.completedSessions} />
 
           <KnowledgeGraphDashboard />
 
@@ -354,6 +436,7 @@ export default function Home() {
               <FocusMonitor
                 onContextSwitch={handleContextSwitch}
                 onFaceAbsence={handleFaceAbsence}
+                onFocusChange={setLiveFocused}
               />
             </div>
           )}
