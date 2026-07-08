@@ -1,4 +1,4 @@
-# ai-study-buddy# AI Study Buddy
+# AI Study Buddy
 
 An AI-powered learning assistant designed to help students understand concepts through intelligent question answering and an interactive conversational interface.
 
